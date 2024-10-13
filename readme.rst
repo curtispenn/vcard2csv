@@ -1,3 +1,39 @@
+# How to Use the vCard to CSV Script
+
+## Prerequisites
+- Ensure you have a folder on your Desktop containing the `.vcf` files you want to convert.
+
+## Steps to Use the Script
+
+1. **Open Terminal**
+   - Find and open the **Terminal** application. You can find it in `Applications > Utilities`.
+
+2. **Navigate to Your vCard Folder**
+   - In the Terminal, type the following command to go to your vCard folder (replace `vCardFiles` with your actual folder name if different):
+     ```bash
+     cd ~/Desktop/vCardFiles
+     ```
+   - Press **Enter**.
+
+3. **Run the Script**
+   - To convert your vCard files to a CSV file, type the following command:
+     ```bash
+     python3 ~/Desktop/vcard2csv.py . output.csv
+     ```
+   - Here, `output.csv` is the name of the resulting CSV file. You can change this name if you prefer.
+
+4. **Check the Output**
+   - After the script finishes running, look in the `vCardFiles` folder for the `output.csv` file. You can open this file with any spreadsheet application (like Excel or Google Sheets) to view your contacts.
+
+## Troubleshooting
+- If you encounter any errors:
+  - Make sure you’re in the correct folder.
+  - Check that your vCard files have the `.vcf` extension.
+  - Look for any error messages in the Terminal for guidance.
+
+## Notes
+- The script will only extract certain fields: Name, Cell phone, Work phone, Home phone, Email, and Note.
+
 .. -*- coding: utf-8 -*-
 
 ============

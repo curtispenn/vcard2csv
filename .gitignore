@@ -1,3 +1,4 @@
 *.swp
 .~lock.*
 test.csv
+.DS_Store

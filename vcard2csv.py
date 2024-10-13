@@ -3,7 +3,7 @@ import vobject
 import glob
 import csv
 import argparse
-import os.path
+import os
 import sys
 import logging
 import collections
@@ -21,37 +21,29 @@ column_order = [
 def get_phone_numbers(vCard):
     cell = home = work = None
     for tel in vCard.tel_list:
-        if vCard.version.value == '2.1':
-            if 'CELL' in tel.singletonparams:
-                cell = str(tel.value).strip()
-            elif 'WORK' in tel.singletonparams:
-                work = str(tel.value).strip()
-            elif 'HOME' in tel.singletonparams:
-                home = str(tel.value).strip()
-            else:
-                logging.warning("Warning: Unrecognized phone number category in `{}'".format(vCard))
-                tel.prettyPrint()
-        elif vCard.version.value == '3.0':
-            if 'CELL' in tel.params['TYPE']:
-                cell = str(tel.value).strip()
-            elif 'WORK' in tel.params['TYPE']:
-                work = str(tel.value).strip()
-            elif 'HOME' in tel.params['TYPE']:
-                home = str(tel.value).strip()
-            else:
-                logging.warning("Unrecognized phone number category in `{}'".format(vCard))
-                tel.prettyPrint()
+        tel_type = tel.singletonparams if vCard.version.value == '2.1' else tel.params.get('TYPE', [])
+        
+        if 'CELL' in tel_type:
+            cell = str(tel.value).strip()
+        elif 'WORK' in tel_type:
+            work = str(tel.value).strip()
+        elif 'HOME' in tel_type:
+            home = str(tel.value).strip()
         else:
-            raise NotImplementedError("Version not implemented: {}".format(vCard.version.value))
+            logging.warning("Warning: Unrecognized phone number category in `{}'".format(vCard))
+            tel.prettyPrint()
+    
     return cell, home, work
 
 def get_info_list(vCard, vcard_filepath):
     vcard = collections.OrderedDict()
     for column in column_order:
         vcard[column] = None
+
     name = cell = work = home = email = note = None
     vCard.validate()
-    for key, val in list(vCard.contents.items()):
+
+    for key, val in vCard.contents.items():
         if key == 'fn':
             vcard['Full name'] = vCard.fn.value
         elif key == 'n':
@@ -63,18 +55,14 @@ def get_info_list(vCard, vcard_filepath):
             vcard['Home phone'] = home
             vcard['Work phone'] = work
         elif key == 'email':
-            email = str(vCard.email.value).strip()
-            vcard['Email'] = email
+            vcard['Email'] = str(vCard.email.value).strip()
         elif key == 'note':
-            note = str(vCard.note.value)
-            vcard['Note'] = note
-        else:
-            # An unused key, like `adr`, `title`, `url`, etc.
-            pass
+            vcard['Note'] = str(vCard.note.value)
+
     if name is None:
-        logging.warning("no name for vCard in file `{}'".format(vcard_filepath))
-    if all(telephone_number is None for telephone_number in [cell, work, home]):
-        logging.warning("no telephone numbers for file `{}' with name `{}'".format(vcard_filepath, name))
+        logging.warning("No name for vCard in file `{}'".format(vcard_filepath))
+    if all(phone is None for phone in [cell, work, home]):
+        logging.warning("No telephone numbers for file `{}' with name `{}'".format(vcard_filepath, name))
 
     return vcard
 
@@ -84,32 +72,25 @@ def get_vcards(vcard_filepath):
     for vCard in vobject.readComponents(all_text):
         yield vCard
 
-
 def readable_directory(path):
     if not os.path.isdir(path):
-        raise argparse.ArgumentTypeError(
-            'not an existing directory: {}'.format(path))
+        raise argparse.ArgumentTypeError(f'Not an existing directory: {path}')
     if not os.access(path, os.R_OK):
-        raise argparse.ArgumentTypeError(
-            'not a readable directory: {}'.format(path))
+        raise argparse.ArgumentTypeError(f'Not a readable directory: {path}')
     return path
 
 def writable_file(path):
     if os.path.exists(path):
         if not os.access(path, os.W_OK):
-            raise argparse.ArgumentTypeError(
-                'not a writable file: {}'.format(path))
+            raise argparse.ArgumentTypeError(f'Not a writable file: {path}')
     else:
-        # If the file doesn't already exist,
-        # the most direct way to tell if it's writable
-        # is to try writing to it.
         with open(path, 'w') as fp:
             pass
     return path
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert a bunch of vCard (.vcf) files to a single TSV file.'
+        description='Convert vCard (.vcf) files to a single TSV file.'
     )
     parser.add_argument(
         'read_dir',
@@ -119,7 +100,7 @@ def main():
     parser.add_argument(
         'tsv_file',
         type=writable_file,
-        help='Output file',
+        help='Output TSV file',
     )
     parser.add_argument(
         '-v',
@@ -143,11 +124,10 @@ def main():
 
     vcard_pattern = os.path.join(args.read_dir, "*.vcf")
     vcard_paths = sorted(glob.glob(vcard_pattern))
-    if len(vcard_paths) == 0:
-        logging.error("no files ending with `.vcf` in directory `{}'".format(args.read_dir))
+    if not vcard_paths:
+        logging.error("No files ending with `.vcf` in directory `{}'".format(args.read_dir))
         sys.exit(2)
 
-    # Tab separated values are less annoying than comma-separated values.
     with open(args.tsv_file, 'w', encoding="utf-8", newline='') as tsv_fp:
         writer = csv.writer(tsv_fp, delimiter='\t')
         writer.writerow(column_order)
